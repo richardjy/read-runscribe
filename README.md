@@ -38,7 +38,7 @@ the other columns should be self explanatory
 
 ###Error messages
 1. If error message mentions 'requests' then you have not installed the 'requests' module (see above)
-2. Entering an incorrect run number (you can only load your own runs) will prompt for number again
+2. Entering an incorrect run number (you can only access your own runs) will prompt for number again
   * If see prompt and the number is correct then check email and password
   * If email/password OK then set 'read_tod' to False - there might be some difference in the web page layout causing the search for date and time to fail
 3. Script will abort if CSV file is already open in Excel (or similar program that locks the opened file). Having a file open in Notepad is OK.
