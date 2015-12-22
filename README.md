@@ -4,14 +4,14 @@ Read run data from RunScribe Dashboard (using Python script(s))
 Python - open source scripting language
 1 Version used for development 3.5
 
-# Script variables
+Script variables
 1 rs_email and rs_password MUST be set to the email and password used to access the RunScribe Dashboard.
-
 
 2 Other variables are described in the script - in particular 'min_delta' and 'min_step_rate' determine whether a data point is 'active' or 'pause'
 
 Running script - Script input
 1 Enter run number (e.g. 98765 for data https://dashboard.runscribe.com/runs/98765)
+
 2 Press to exit
 
 Script output:
