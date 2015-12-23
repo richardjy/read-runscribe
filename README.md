@@ -2,7 +2,7 @@
 Read run data from RunScribe Dashboard and export to CSV format (using Python scripting). Also, analyzes data to identify active v. pause regions, so that active time and distance can be estimated.
 
 ###Python
-1. Open source scripting language
+1. Open source scripting language - see for example https://www.python.org/downloads/
 2. Version used for development 3.5
 3. Uses "requests" module - see for example https://pypi.python.org/pypi/requests/
 
