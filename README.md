@@ -1,5 +1,5 @@
 # read-runscribe
-Read run data from RunScribe Dashboard and export to CSV format (using Python script(s)). Also, analyzes data to identify active v. pause regions, so that active time and distance can be estimated.
+Read run data from RunScribe Dashboard and export to CSV format (using Python scripting). Also, analyzes data to identify active v. pause regions, so that active time and distance can be estimated.
 
 ###Python
 1. Open source scripting language
