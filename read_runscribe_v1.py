@@ -7,7 +7,6 @@
 try:   #generic error trapping 
     import sys, traceback
     import requests  # not part of the default python install - see http://docs.python-requests.org/en/latest/
-   # import datetime
     import re
     from datetime import datetime, timedelta
 
