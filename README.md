@@ -1,6 +1,10 @@
 # read-runscribe
 Read run data from RunScribe Dashboard and export to CSV format (using Python scripting). Also, analyzes data to identify active v. pause regions, so that active time and distance can be estimated.
 
+###Scripts
+read_runscribe_v1.py - main script - currently assumes miles as data (scale factors will be wrong for Km data)
+read_runscribe_metrish_v11.py - read Km data and format with ";" as the delimiter for CSV
+
 ###Python
 1. Open source scripting language - see for example https://www.python.org/downloads/
 2. Version used for development 3.5
