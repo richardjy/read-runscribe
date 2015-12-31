@@ -1,0 +1,4 @@
+# used to store email and password - avoids having to enter them explicitly in the script
+[runscribe]
+email = user@email
+password = rspassword

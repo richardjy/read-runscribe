@@ -1,0 +1,43 @@
+12/30/2015
+
+###Adding extra dummy datapoints
+For pauses more than some amount (default = 5s) the script can add dummy datapoints that force the step rate to 0 etc during the pause. In first version two datapoints were added. An improvement is to add extra datapoints every approx 1.2s (equivalent of 100 steps per min). Code adapts the exact time gap to fit in a whole number of datapoints.
+
+###Separate Email/password file
+Users can edit their runscribe email and password in the script. However, this makes working with GitHub more complicated as need to make sure actual email/pwd are not uploaded into the repository. Instead create 'userdata.config' to hold this data. This file can be excluded from uploads to GitHub. Users can still edit email/pwd in main script for their local use, or else include info in userdata.config (based on userdata.config.example included in GitHub.
+
+###Intervals (split) support added
+A summary of each active/pause region is logged in 'runlog.csv'. Pace and average step rate for the interval is calculated along with average values for the other metrics. 
+
+####Example 'runlog.csv' 
+
+
+Run, 37075,2015-12-27 10:30
+min_delta, 3500, min_step_rate, 50
+
+Shoe, Active time, Active dist (mi), Active pace (mi/min), Pause time, Total distance (mi), Total time, Distance ratio
+left, 01:11:21, 8.95, 07:58, 00:04:27, 9.27, 01:15:48, 1.036
+right, 01:10:46, 8.88, 07:58, 00:04:36, 9.23, 01:15:22, 1.040
+
+shoe, interval#, time of day, time(s), time(hms), active_time, active_dist,  active_pace, pause_time, step_rate (s/min), stride_length (ft), contact_time (ms), braking_gs, impact_gs, footstrike_type, max_pronation_vel, pronation_fs_mp, pronation_mp_to,stance_fs_mp, stance_mp_to, active_index, pause_index, pause_dist, active steps 
+left, 0, 10:30:01, 0.6, 00:00:00.6, 01:11:21.2, 8.95, 07:58.5, 00:04:27.0, 164.4, 8.06, 303, 9.36, 8.06, 5.1, 532, -10.8, -0.5, 14.6, 78.9, -1, -1, 0.32, 11730
+left, 1, 10:37:45, 464.6, 00:07:44.6, 00:07:34.2, 0.84, 09:00.7, 00:00:09.7, 160.4, 7.31, 319, 9.10, 11.56, 4.7, 453, -10.7, 1.0, 15.5, 74.8, 606, 607, 0.01, 1214
+left, 2, 10:38:36, 516.2, 00:08:36.2, 00:00:36.0, 0.07, 08:26.8, 00:00:15.5, 159.8, 7.83, 313, 9.27, 11.77, 3.4, 424, -10.4, 0.3, 17.5, 76.1, 655, 656, 0.02, 96
+left, 3, 10:43:28, 808.1, 00:13:28.1, 00:04:03.2, 0.49, 08:20.7, 00:00:48.8, 164.3, 7.71, 300, 10.27, 11.84, 4.2, 534, -9.8, 0.2, 16.3, 76.9, 989, 990, 0.05, 666
+left, 4, 10:46:30, 990.3, 00:16:30.3, 00:02:25.0, 0.31, 07:48.8, 00:00:37.2, 163.9, 8.25, 292, 9.44, 12.00, 3.6, 526, -12.0, 0.7, 17.1, 78.1, 1188, 1189, 0.05, 396
+left, 5, 10:57:54, 1673.5, 00:27:53.5, 00:09:32.6, 1.22, 07:48.7, 00:01:50.6, 164.1, 8.24, 298, 9.25, 11.26, 4.7, 522, -11.4, 0.2, 15.3, 78.9, 1972, 1973, 0.14, 1566
+left, 6, 11:31:02, 3661.6, 01:01:01.6, 00:32:54.0, 4.40, 07:28.9, 00:00:14.1, 168.5, 8.37, 292, 9.63, 11.25, 6.0, 578, -11.2, -1.1, 13.2, 80.5, 4745, 4746, 0.02, 5544
+left, 7, 11:32:54, 3774.0, 01:02:54.0, 00:01:31.7, 0.17, 08:46.1, 00:00:20.7, 156.9, 7.71, 328, 9.38, 11.67, 3.9, 504, -9.6, -0.5, 16.5, 78.8, 4863, 4864, 0.02, 240
+left, 8, 11:37:40, 4059.8, 01:07:39.8, 00:04:35.4, 0.51, 08:56.3, 00:00:10.4, 156.8, 7.53, 336, 8.46, 12.59, 5.5, 469, -8.6, -0.7, 14.0, 78.5, 5224, 5225, 0.01, 720
+left, 9, 11:45:49, 4548.8, 01:15:48.8, 00:08:09.0, 0.93, 08:43.1, 00:00:00.0, 158.1, 7.66, 326, 8.60, 12.79, 3.5, 473, -10.3, -0.4, 17.4, 77.9, 5867, 5867, 0.00, 1288
+
+right, 0, 10:30:05, 4.6, 00:00:04.6, 01:10:45.8, 8.88, 07:58.1, 00:04:36.4, 165.5, 8.01, 310, 7.19, 8.01, 5.8, 601, -15.4, -12.8, 13.5, 79.5, -1, -1, 0.35, 11711
+right, 1, 10:37:44, 464.4, 00:07:44.4, 00:07:27.6, 0.87, 08:36.2, 00:00:12.1, 161.4, 7.61, 319, 6.72, 11.91, 7.7, 600, -14.6, -10.0, 10.5, 77.5, 601, 602, 0.02, 1204
+right, 2, 10:38:36, 515.6, 00:08:35.6, 00:00:33.3, 0.07, 08:14.2, 00:00:18.0, 162.2, 7.92, 307, 6.79, 11.03, 6.4, 579, -16.6, -10.3, 12.5, 78.2, 647, 648, 0.03, 90
+right, 3, 10:43:26, 806.4, 00:13:26.4, 00:03:59.0, 0.49, 08:10.5, 00:00:51.8, 165.7, 7.80, 305, 7.26, 11.21, 5.5, 642, -16.4, -11.1, 14.0, 78.8, 978, 979, 0.08, 660
+right, 4, 10:46:24, 983.8, 00:16:23.8, 00:02:20.7, 0.30, 07:47.4, 00:00:36.8, 165.5, 8.20, 294, 7.18, 10.65, 5.0, 596, -17.5, -11.4, 14.7, 80.4, 1173, 1174, 0.05, 388
+right, 5, 10:57:43, 1662.6, 00:27:42.6, 00:09:29.8, 1.22, 07:46.3, 00:01:49.0, 165.1, 8.23, 304, 7.06, 10.49, 5.3, 582, -16.2, -12.9, 14.2, 80.5, 1958, 1959, 0.10, 1568
+right, 6, 11:30:38, 3637.9, 01:00:37.9, 00:32:40.8, 4.32, 07:34.3, 00:00:14.5, 169.6, 8.22, 300, 7.48, 10.30, 5.8, 616, -15.3, -14.1, 13.5, 80.2, 4730, 4731, 0.02, 5542
+right, 7, 11:32:31, 3750.6, 01:02:30.6, 00:01:28.8, 0.17, 08:48.4, 00:00:23.9, 158.1, 7.58, 336, 7.10, 11.16, 4.8, 574, -15.1, -13.0, 15.0, 78.8, 4848, 4849, 0.03, 234
+right, 8, 11:37:15, 4034.7, 01:07:14.7, 00:04:33.7, 0.51, 08:56.0, 00:00:10.4, 157.8, 7.49, 343, 6.60, 13.16, 6.2, 545, -13.9, -12.1, 12.8, 78.7, 5209, 5210, 0.01, 720
+right, 9, 11:45:27, 4526.9, 01:15:26.9, 00:08:12.2, 0.94, 08:43.5, 00:00:00.0, 159.0, 7.61, 331, 6.90, 12.34, 5.2, 578, -15.7, -11.4, 14.5, 78.1, 5857, 5857, 0.00, 1305
