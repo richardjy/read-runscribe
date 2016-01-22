@@ -1,3 +1,10 @@
+1/22/2016
+Various bug fixes
+
+###Cross-correlate R and L data
+Use cross-correlation of L and R data to measure time offset between data streams. Also measure time scaling factor between the data sets. Uses Python graphing to display results. 'crosscorr = True' used to switch on capability. Other variables documented in code. 
+
+
 12/30/2015
 
 ###Adding extra dummy datapoints
