@@ -5,11 +5,16 @@
 # Richard Young - December 2015 
 
 try:   #generic error trapping 
-    import sys, traceback, locale
+    import sys, traceback, locale, numpy as np #,scipy, time
     import requests  # not part of the default python install - see http://docs.python-requests.org/en/latest/
     import re
+    import matplotlib.pyplot as plt
     from datetime import datetime, timedelta
     from configparser import ConfigParser
+    # suppress wardings from plotting event loop
+    import warnings
+    import matplotlib.cbook
+    warnings.filterwarnings("ignore",category=matplotlib.cbook.mplDeprecation)
 
     #input is datetime format - allows formating with rounded numbers
     def showHMS(dt): #output is string for H:M:S rounded to nearest second (e.g. for run time)
@@ -85,6 +90,61 @@ try:   #generic error trapping
         iactive_stance_mp_to[shoe][0] = (sum([(stance_excursion_mp_to['mountings'][shoe]['values'][i]) for i,j in enumerate(status_active[shoe]) if j !=0])/range_pt)
         return True
 
+    def correlate(midpt1, width1, trange, toffset):
+        # cmidpt. width1 are fraction of range, trange is time range to search, toffset is offset for search position      
+             
+        # calc parameters
+        start1=int((midpt1-width1/2)*dmaxtime)
+        finish1=int((midpt1+width1/2)*dmaxtime)        
+        if finish1 > dmaxtime: finish1 = dmaxtime
+        if start1 < 0: start1 = 0    
+        prange = int(trange/dtime) 
+        poffset = int(toffset/dtime)        
+        start0=start1-prange+poffset
+        if start0 < 0: start0=0
+        finish0=finish1+prange+poffset
+        if finish0> dmaxtime: finish0 = dmaxtime        
+        m0= np.mean(inter0[start0:finish0])       #need pos and neg values, use m0 for both arrays
+        m1= np.mean(inter1[start1:finish1]) 
+        range0 = finish0-start0
+        range1 = finish1-start1        
+        
+        corr = np.correlate(inter0[start0:finish0]-m0, inter1[start1:finish1]-m1, 'full')
+        offset = finish1 - start0 - 1
+        halfrange0 = int((finish0-start0)/2)
+        #limit search range for max in case spurious peaks out side center
+        tcorr = dtime*(np.nanargmax(corr[(offset-prange+poffset):(offset+prange+poffset)]) - (prange-poffset)) 
+
+
+        corrmax = np.max(corr)        
+        
+        # f0=scipy.fft(inter0[start0:finish0],range0)
+        # f1=scipy.fft(inter1[start1:finish1],range0)
+        # fcorr = scipy.ifft(f0*scipy.conj(f1))
+        # tfcorr = (np.argmax(abs(fcorr)) -(start1-start0))
+            
+        #print(tfcorr, len(fcorr), np.argmax(abs(fcorr)))
+        #print(start0, finish0, m0, range0, start1, finish1, m1, range1, offset, np.nanargmax(corr[range1:(range1+range0)]))        
+        
+        axarr[ioff].plot(xint[start0:finish0]/(1000), inter0[start0:finish0], 'b-', tcorr + xint[start1:finish1]/(1000), inter1[start1:finish1], 'r--')
+        if show_corr == True : axarr[ioff].plot(xint[start0:finish0]/(1000), corr[(offset-halfrange0):(offset-halfrange0+range0)]*(ymax*0.75/corrmax), 'g-')
+        if ioff == 0:
+            ttext = 'Run:' + str(run_index) + '   Offset ' + step_rate['mountings'][0]['foot'] + ' to ' + step_rate['mountings'][1]['foot'] + ': ' + str(tcorr) + 's'
+            axarr[ioff].set_title(ttext)
+            #axarr[ioff].xaxis. set_label_coord(0.5, -0.1)
+            #plt.setp(axarr[ioff],)
+        else: 
+            ttext = 'Section ' + str(ioff) + '/' + str(offrange) + '  ' + str(tcorr) + 's'
+            axarr[ioff].text(start0*dtime+5, ymin + (ymax-ymin)*0.05, ttext)
+            #plt.setp(axarr[ioff], xticklabels=[])
+            #plt.setp(axarr[ioff], yticklabels=[])
+            #plt.subplots_adjust()
+        axarr[ioff].axis([start0*dtime, finish0*dtime, ymin, ymax])  
+        plt.subplots_adjust(top = 0.95, bottom = 0.05, left = 0.05, right = 0.98, hspace = 0.3)        
+        plt.show()
+        plt.pause(0.1)
+        return tcorr
+
     # Main code
 
     # start of input variables
@@ -116,7 +176,7 @@ try:   #generic error trapping
 
     # forcing pauses to have step rate of zero - improves look of graphs
     #   if delta > gap_delta then add blank section into trace (+/- 700ms) 
-    gap_on = False      # whether to add gaps, set to True to add gaps
+    gap_on = True      # whether to add gaps, set to True to add gaps
     gap_delta = 5000    # if longer than 5s then add gap data
     gap_step_rate = 0
     gap_stride_pace = 100  # arbitary
@@ -131,6 +191,15 @@ try:   #generic error trapping
     gap_stance_excursion_fs_mp =  0
     gap_stance_excursion_mp_to =  0  
     # end of input variables
+    
+    # cross-correlate values to calculate offset between L and R    
+    crosscorr = True
+    corr_stride = False # use stride rate (default), if false use step rate    
+    dtime=0.25 # interpolation step size in seconds - should be whole fraction of a second. typical step is 700ms, 0.25s gives sub-pt interpolation
+    maxoffset = 150 # smaller values should be possible - but some runs at 105s!
+    scaleoffset = 0.015 #local search offset factor 
+    show_corr = False # show correlation value on graph 
+    offrange=5 # number of ranges to look at for correlation
     
     #runscribe dashboard
     url_login = 'https://dashboard.runscribe.com/login'
@@ -271,8 +340,8 @@ try:   #generic error trapping
                         current_status = "pause"
                     if (delta_time > gap_delta) and (gap_on == True) and (pt != 0):
                         # fill in data in the gap - starting 700ms after last point and ending 700ms before next
-                        gap_start = step_rate['mountings'][shoe]['timestamps'][pt-1] + 700
-                        gap_end = step_rate['mountings'][shoe]['timestamps'][pt] - 700                        
+                        gap_start = step_rate['mountings'][shoe]['timestamps'][pt] + 700
+                        gap_end = step_rate['mountings'][shoe]['timestamps'][pt+1] - 700                        
                         #add a point roughtly every 1.2 seconds in the gap 
                         num2add = int(round((gap_end - gap_start)/1200, 0))  
                         gap_time = (gap_end - gap_start)/num2add 
@@ -294,7 +363,7 @@ try:   #generic error trapping
                             stance_excursion_mp_to['mountings'][shoe]['values'].insert(pt, gap_stance_excursion_mp_to)
                             #handle extra data sets
                             pause_time[shoe].append(pause_start + n*gap_time)
-                            pause_dist[shoe].append(pause_dist[shoe][pt-1])
+                            pause_dist[shoe].append(pause_dist[shoe][pt-1]) # pause dist only update on last data point
                             active_time[shoe].append(iactive_time[shoe][0])
                             active_dist[shoe].append(iactive_dist[shoe][0])
                             status_active[shoe].append(0)
@@ -358,12 +427,9 @@ try:   #generic error trapping
             active_time[shoe].append(iactive_time[shoe][0])
             active_dist[shoe].append(iactive_dist[shoe][0])
             interval+=1            
+            #summary data
+            summaryactiveinterval()
             
-
-            # update number of points
-            no_pts = (len(step_rate['mountings'][shoe]['values']))
-            
-            summaryactiveinterval()    
             # distance in miles/km, times in datetime format
             total_dist = iactive_dist[shoe][0] + ipause_dist[shoe][0]
             distance_ratio = total_dist/iactive_dist[shoe][0] #can be used to enter calibration value for run that includes pauses
@@ -384,40 +450,45 @@ try:   #generic error trapping
                   + showMS(active_pace_time) + ', ' +  showHMS(total_pause_time) + ', {0:.2f}'.format(total_dist) + ', ' \
                   + showHMS(total_time) + ', {0:.3f}'.format(distance_ratio) + '\n')
 
-            # save to logfile along with other key data (overwite old file) name format 'run_XXXXXfoot.cvs'
-            csv_file = open('run_' + str(run_index) + foot + '.csv', 'w')
-            csv_file.write('datetime, time (s), time (hms), active_status, active_dist (mi), active_time (s), pause_time (s), ' \
-                           + 'stride_pace (mi/min), step_rate (s/min), stride_length (ft), contact_time (ms), braking_gs, impact_gs, ' \
-                           + 'footstrike_type, max_pronation_vel, pronation_fs_mp, pronation_mp_to,' \
-                           + 'stance_fs_mp, stance_mp_to \n')
-
-            if sporttracks == True :  # add headers just for sporttracks WBS CSV plugin - use power as input for one of RunScribe values
-                csv_file.write('datetime, , , , , , , ' \
-                           + 'power, cadence, , , , , , , , , , , \n') #import pace as power
-            for pt in range(0, no_pts):
-                time_sec = (step_rate['mountings'][shoe]['timestamps'][pt])/1000
-                pt_tod = run_tod + timedelta(seconds=time_sec)
-                pt_time = datetime.min + timedelta(seconds=time_sec)
-                csv_file.write(pt_tod.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3] + ', ' #show millisecs not microsecs \  
-                               + str(time_sec) + ', ' \
-                               + pt_time.strftime('%H:%M:%S.%f')[:-3] + ', ' \
-                               + str(status_active[shoe][pt]) + ', ' \
-                               + '{number:.{digits}f}, '.format(number=(active_dist[shoe][pt]), digits=4) \
-                               + '{number:.{digits}f}, '.format(number=(active_time[shoe][pt]/1000), digits=1) \
-                               + '{number:.{digits}f}, '.format(number=(pause_time[shoe][pt]/1000), digits=1) \
-                               + str(stride_pace['mountings'][shoe]['values'][pt]) + ', ' \
-                               + str(step_rate['mountings'][shoe]['values'][pt]) + ', ' \
-                               + str(stride_length['mountings'][shoe]['values'][pt]) + ', ' \
-                               + str(contact_time['mountings'][shoe]['values'][pt]) + ', ' \
-                               + str(braking_gs['mountings'][shoe]['values'][pt]) + ', ' \
-                               + str(impact_gs['mountings'][shoe]['values'][pt]) + ', ' \
-                               + str(footstrike_type['mountings'][shoe]['values'][pt]) + ', ' \
-                               + str(max_pronation_velocity['mountings'][shoe]['values'][pt]) + ', ' \
-                               + str(pronation_excursion_fs_mp['mountings'][shoe]['values'][pt]) + ', ' \
-                               + str(pronation_excursion_mp_to['mountings'][shoe]['values'][pt]) + ', ' \
-                               + str(stance_excursion_fs_mp['mountings'][shoe]['values'][pt]) + ', ' \
-                               + str(stance_excursion_mp_to['mountings'][shoe]['values'][pt]) + '\n')
-            csv_file.close()
+        # look at alignment of run data - use stride_pace as has more variation than step_rate
+        if crosscorr == True and no_feet == 2 :        
+            maxtime0=int(iactive_time[0][0]/1000 + ipause_time[0][0]/1000)   
+            maxtime1=int(iactive_time[1][0]/1000 + ipause_time[1][0]/1000) 
+            maxtime = max([maxtime0, maxtime1])
+            dmaxtime = int(maxtime/dtime)           
+            
+            xint = np.linspace(0, maxtime*1000, dmaxtime+1)
+            plt.rc('xtick', labelsize=10)
+            plt.rc('ytick', labelsize=8)
+            for graph in range(1,3):
+                if graph == 1:     # stride pace - always use step rate for time stamps,        
+                    inter0 = np.interp(xint, step_rate['mountings'][0]['timestamps'],stride_pace['mountings'][0]['values'],0,0)
+                    inter1 = np.interp(xint, step_rate['mountings'][1]['timestamps'],stride_pace['mountings'][1]['values'],0,0)
+                    act_avg=(iactive_pace[0][0] + iactive_pace[1][0])/2     
+                    ymax = act_avg*1.3
+                    ymin = act_avg*0.7
+                else:  #step rate
+                    inter0 = np.interp(xint, step_rate['mountings'][0]['timestamps'],step_rate['mountings'][0]['values'],0,0)
+                    inter1 = np.interp(xint, step_rate['mountings'][1]['timestamps'],step_rate['mountings'][1]['values'],0,0)
+                    act_avg=(iactive_step_rate[0][0] + iactive_step_rate[1][0])/2
+                    ymax = act_avg*1.20
+                    ymin = act_avg*0.85
+                    
+                #correlate whole run
+                f, axarr = plt.subplots(offrange+1)            
+                ioff=0            
+                offset01 = [0]*(offrange+1)            
+                offset01[0] = correlate(0.5, 0.95, maxoffset, 0) #use middle 95% of run (ignore edge effects)
+                print('0: ' +  str(offset01[0]) + 's')
+                
+                for ioff in range(1,offrange+1):
+                    offset01[ioff] = correlate((ioff-0.5)/offrange, 1/(2*offrange), maxtime*scaleoffset, offset01[0])  
+                    print(str(ioff) + ': ' +  str(offset01[ioff]) + 's')
+                lsf = (np.polyfit(np.linspace(maxtime*0.5/offrange, maxtime*(offrange-0.5)/offrange, offrange), offset01[1:], 1))
+                # answer offt = lsf[0]*t + lsf[1], so delta time over full time range = maxtime
+                maxtimeoffset = maxtime*lsf[0]
+                print('Full range offset: {0:.1f}s'.format(maxtimeoffset) + ' {0:.2f}%'.format(lsf[0]*100))
+            
         # print interval data to log file
         log_file.write('\nshoe, interval#, time of day, time(s), time(hms), active_time, active_dist,  active_pace, pause_time, ' \
                                 + 'step_rate (s/min), stride_length (ft), contact_time (ms), braking_gs, impact_gs, ' \
@@ -454,7 +525,42 @@ try:   #generic error trapping
                                + str(iactive_index[shoe][i]) + ', '  + str(ipause_index[shoe][i]) + ', ' \
                                + locale.format_string('%.2f',(ipause_dist[shoe][i]))  + ', ' \
                                + locale.format_string('%.0f',(iactive_step[shoe][i])) + '\n') 
-            log_file.write('\n')              
+            log_file.write('\n')
+
+            # save to logfile along with other key data (overwite old file) name format 'run_XXXXXfoot.cvs'
+            csv_file = open('run_' + str(run_index) + foot + '.csv', 'w')
+            csv_file.write('datetime, time (s), time (hms), active_status, active_dist (mi), active_time (s), pause_time (s), ' \
+                           + 'stride_pace (mi/min), step_rate (s/min), stride_length (ft), contact_time (ms), braking_gs, impact_gs, ' \
+                           + 'footstrike_type, max_pronation_vel, pronation_fs_mp, pronation_mp_to,' \
+                           + 'stance_fs_mp, stance_mp_to \n')
+
+            if sporttracks == True :  # add headers just for sporttracks WBS CSV plugin - use power as input for one of RunScribe values
+                csv_file.write('datetime, , , , , , , ' \
+                           + 'power, cadence, , , , , , , , , , , \n') #import pace as power
+            for pt in range(0, (len(step_rate['mountings'][shoe]['values']))):
+                time_sec = (step_rate['mountings'][shoe]['timestamps'][pt])/1000
+                pt_tod = run_tod + timedelta(seconds=time_sec)
+                pt_time = datetime.min + timedelta(seconds=time_sec)
+                csv_file.write(pt_tod.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3] + ', ' #show millisecs not microsecs \  
+                               + str(time_sec) + ', ' \
+                               + pt_time.strftime('%H:%M:%S.%f')[:-3] + ', ' \
+                               + str(status_active[shoe][pt]) + ', ' \
+                               + '{number:.{digits}f}, '.format(number=(active_dist[shoe][pt]), digits=4) \
+                               + '{number:.{digits}f}, '.format(number=(active_time[shoe][pt]/1000), digits=1) \
+                               + '{number:.{digits}f}, '.format(number=(pause_time[shoe][pt]/1000), digits=1) \
+                               + str(stride_pace['mountings'][shoe]['values'][pt]) + ', ' \
+                               + str(step_rate['mountings'][shoe]['values'][pt]) + ', ' \
+                               + str(stride_length['mountings'][shoe]['values'][pt]) + ', ' \
+                               + str(contact_time['mountings'][shoe]['values'][pt]) + ', ' \
+                               + str(braking_gs['mountings'][shoe]['values'][pt]) + ', ' \
+                               + str(impact_gs['mountings'][shoe]['values'][pt]) + ', ' \
+                               + str(footstrike_type['mountings'][shoe]['values'][pt]) + ', ' \
+                               + str(max_pronation_velocity['mountings'][shoe]['values'][pt]) + ', ' \
+                               + str(pronation_excursion_fs_mp['mountings'][shoe]['values'][pt]) + ', ' \
+                               + str(pronation_excursion_mp_to['mountings'][shoe]['values'][pt]) + ', ' \
+                               + str(stance_excursion_fs_mp['mountings'][shoe]['values'][pt]) + ', ' \
+                               + str(stance_excursion_mp_to['mountings'][shoe]['values'][pt]) + '\n')
+            csv_file.close()
         log_file.close()
 
 except: # called on all errors - needs better trapping!
