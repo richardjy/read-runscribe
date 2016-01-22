@@ -1,11 +1,11 @@
-1/22/2016
+##1/22/2016 
 Various bug fixes
 
 ###Cross-correlate R and L data
 Use cross-correlation of L and R data to measure time offset between data streams. Also measure time scaling factor between the data sets. Uses Python graphing to display results. 'crosscorr = True' used to switch on capability. Other variables documented in code. Data output shown on screen, not integrated into data file yet. 
 
 
-12/30/2015
+##12/30/2015
 
 ###Adding extra dummy datapoints
 For pauses more than some amount (default = 5s) the script can add dummy datapoints that force the step rate to 0 etc during the pause. In first version two datapoints were added. An improvement is to add extra datapoints every approx 1.2s (equivalent of 100 steps per min). Code adapts the exact time gap to fit in a whole number of datapoints.
